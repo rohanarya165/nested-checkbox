@@ -1,28 +1,26 @@
 import { useState } from "react";
 import "./App.css";
 
+// ⚙️ Ye hai pura checkbox ka data — nested format me
 const checkboxData = [
   {
     id: 1,
     label: "Fruits",
-    checked: false,
     children: [
       {
         id: 2,
         label: "Citrus",
-        checked: false,
         children: [
-          { id: 3, label: "Orange", checked: false },
-          { id: 4, label: "Lemon", checked: false },
+          { id: 3, label: "Orange" },
+          { id: 4, label: "Lemon" },
         ],
       },
       {
         id: 5,
         label: "Berries",
-        checked: false,
         children: [
-          { id: 6, label: "Strawberry", checked: false },
-          { id: 7, label: "Blueberry", checked: false },
+          { id: 6, label: "Strawberry" },
+          { id: 7, label: "Blueberry" },
         ],
       },
     ],
@@ -30,62 +28,98 @@ const checkboxData = [
   {
     id: 8,
     label: "Vegetables",
-    checked: false,
     children: [
-      { id: 9, label: "Carrot", checked: false },
-      { id: 10, label: "Spinach", checked: false },
+      { id: 9, label: "Carrot" },
+      { id: 10, label: "Spinach" },
     ],
   },
 ];
 
-function Checkbox({ data , checked , setChecked }) {
+// ✅ Ye hai main checkbox component jo har level pe chalega (recursive)
+function CheckboxTree({ data, checked, setChecked }) {
+  
+  // 🔁 Jab user checkbox pe click kare
+  const handleChange = (e, node) => {
+    const isChecked = e.target.checked; // user ne check kiya ya nahi
 
-let handlechange = (e, node) => {
-  setChecked(prev => {
-    const newState = {...prev, [node.id] : e.target.checked }
+    setChecked((prev) => {
+      const newState = { ...prev, [node.id]: isChecked }; // abhi ka state copy kar liya
 
-    function updateChild (node) {
-      if(node.children){
-        node.children?.forEach(child => {
-          newState[child.id] = e.target.checked 
-          child.children && updateChild(child)
-        })
-      }
-    }
-    updateChild(node)
+      // 🔽 STEP 1: Sare bacchon ko bhi update karo (agar hain)
+      const updateChildren = (n) => {
+        if (n.children) {
+          n.children.forEach((child) => {
+            newState[child.id] = isChecked; // baccha bhi same state le lega
+            updateChildren(child); // agar baccha ka baccha hai to usko bhi
+          });
+        }
+      };
+      updateChildren(node); // call kar diya
 
-    function verifiedChecked(node){
-      if(!node.children) return newState[node.id] || false;
+      // 🔼 STEP 2: Upar wale parents ka bhi update karo
+      const updateParents = (nodes) => {
+        nodes.forEach((n) => {
+          if (n.children) {
+            // Pehle bacchon ko handle karo
+            n.children.forEach((child) => updateParents([child]));
 
-      const allChildrenChecked = node.children.every(child =>  verifiedChecked(child));
-      newState[node.id] = allChildrenChecked
-      return allChildrenChecked
-    }
-    checkboxData.forEach(node => verifiedChecked(node))
-    return newState
-  })
+            // Check karo ki kya sab bacche checked hain
+            const allChildrenChecked = n.children.every(
+              (child) => newState[child.id]
+            );
+            newState[n.id] = allChildrenChecked; // agar sab checked hain to parent bhi checked
+          }
+        });
+      };
+      updateParents(checkboxData); // full tree ko parent-wise check kiya
 
-}
+      return newState; // naya state bhej diya
+    });
+  };
 
+  // 📦 Render kar rahe hain har checkbox ko
   return data.map((node) => (
-    <div key={node.id}>
-    <div  style={{  paddingLeft : "20px"}}>
-      <input type="checkbox" checked={checked[node?.id] || false} onChange={(e) => handlechange(e,node)} /> <span>{node.label}</span>
-      {node.children &&  <Checkbox data={node.children} checked={checked} setChecked={setChecked}  />}
-    </div>
+    <div key={node.id} style={{ paddingLeft: "20px" }}>
+      <label>
+        <input
+          type="checkbox"
+          checked={checked[node.id] || false} // agar state me nahi hai to false hi samjho
+          onChange={(e) => handleChange(e, node)} // click hone pe kya karna hai
+        />{" "}
+        {node.label}
+      </label>
+
+      {/* 👇 Agar is node ke bacche hain to unko bhi recursively render karo */}
+      {node.children && (
+        <CheckboxTree
+          data={node.children}
+          checked={checked}
+          setChecked={setChecked}
+        />
+      )}
     </div>
   ));
 }
 
+// 🔧 Main app
 function App() {
-  const [checked, setChecked] = useState({1: true});
+  const [checked, setChecked] = useState({}); // sara checkbox ka status yahan store hoga
 
   return (
-    <>
-      <div>
-        <Checkbox data={checkboxData} checked={checked} setChecked={setChecked} />
-      </div>
-    </>
+    <div className="App">
+      <h2>🌳 Nested Checkbox Example</h2>
+
+      {/* 👇 Yahan se pura tree render hoga */}
+      <CheckboxTree
+        data={checkboxData}
+        checked={checked}
+        setChecked={setChecked}
+      />
+
+      {/* 🧪 Debug ke liye pura state dikha diya */}
+      <h3>🧾 Checked State:</h3>
+      <pre>{JSON.stringify(checked, null, 2)}</pre>
+    </div>
   );
 }
 
